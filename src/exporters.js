@@ -21,7 +21,8 @@ export function toJson(result) {
     archivo: result.name,
     paginas: result.pages.length,
     generado: new Date().toISOString(),
-    resultado: result.pages.map((p) => ({ pagina: p.n, metodo: p.method === 'ocr' ? 'ocr' : 'texto-nativo', confianza: p.confidence, texto: p.text })),
+    resultado: result.pages.map((p) => ({ pagina: p.n, metodo: p.method === 'ocr' ? 'ocr' : 'texto-nativo', confianza: p.confidence, texto: p.text,
+      ...(p.translated !== undefined && p.translated !== p.text ? { traduccion: p.translated } : {}) })),
   }, null, 2);
 }
 

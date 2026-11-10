@@ -1,6 +1,7 @@
 import LANGS from './langs.json';
 import { processFile, pool, defaultThreads, CancelledError, IMAGE_TYPES } from './engine.js';
-import { FORMATS, exportOne, exportZip, toTxt } from './exporters.js';
+import { FORMATS, exportOne, exportZip, toTxt, baseName } from './exporters.js';
+import { TARGETS, targetName, translatePages } from './translate.js';
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -17,6 +18,9 @@ if (prefs.mode) document.querySelector(`input[name=mode][value=${prefs.mode}]`).
 if (prefs.dpi) $('#dpi').value = String(prefs.dpi);
 $('#threads').value = prefs.threads || defaultThreads();
 $('#searchable').checked = !!prefs.searchablePdf;
+$('#target').innerHTML = TARGETS.map(([c, n]) => `<option value="${c}">${n}</option>`).join('');
+$('#target').value = prefs.target || 'es';
+$('#autotranslate').checked = !!prefs.autotranslate;
 
 function getOpts() {
   let langs = [...document.querySelectorAll('#langs input:checked')].map((i) => i.value);
@@ -27,6 +31,8 @@ function getOpts() {
     dpi: Number($('#dpi').value),
     threads: Math.max(1, Math.min(16, Number($('#threads').value) || defaultThreads())),
     searchablePdf: $('#searchable').checked,
+    target: $('#target').value,
+    autotranslate: $('#autotranslate').checked,
   };
 }
 $('#opts').addEventListener('change', savePrefs);
@@ -37,6 +43,7 @@ let selected = null;
 let running = false;
 let cancelFlag = false;
 let seq = 0;
+let view = 'original'; // 'original' | 'translated'
 
 function toast(msg) {
   const t = $('#toast');
@@ -79,6 +86,7 @@ async function run() {
           },
         });
         Object.assign(item, res, { status: 'done', msg: `${((performance.now() - t0) / 1000).toFixed(1)} s` });
+        if (opts.autotranslate) { render(); await translateItem(item, opts.target); }
       } catch (e) {
         if (e instanceof CancelledError || cancelFlag) { item.status = 'pending'; item.msg = 'Cancelado'; }
         else { console.error(e); item.status = 'error'; item.error = friendlyError(e); }
@@ -102,8 +110,44 @@ function friendlyError(e) {
   return m;
 }
 
+// ---------- Traducción ----------
+async function translateItem(item, target) {
+  if (item.translating) return;
+  const pages = item.pages.filter(Boolean);
+  if (!pages.some((p) => p.text.trim())) { toast('No hay texto que traducir'); return; }
+  item.translating = true;
+  const prevMsg = item.msg;
+  render();
+  try {
+    const out = await translatePages(pages, target, {
+      isCancelled: () => !items.includes(item),
+      onProgress: (d, t) => { item.msg = `Traduciendo al ${targetName(target).toLowerCase()}… ${t ? Math.round((d / t) * 100) : 0} %`; renderItem(item); },
+    });
+    pages.forEach((p, i) => { p.translated = out[i]; });
+    item.translatedTo = target;
+    item.msg = `${prevMsg ? `${prevMsg} · ` : ''}traducido al ${targetName(target).toLowerCase()}`;
+    if (selected === item.id) view = 'translated';
+    toast(`«${item.name}» traducido al ${targetName(target).toLowerCase()}`);
+  } catch (e) {
+    console.error(e);
+    item.msg = prevMsg;
+    if (items.includes(item)) toast(`No se pudo traducir: ${e.message}. Inténtalo de nuevo en unos minutos.`);
+  } finally {
+    item.translating = false;
+    renderedFor = null;
+    render();
+  }
+}
+
+/** Vista del resultado para exportar: original o traducción. */
+function exportView(it) {
+  if (view !== 'translated' || !it.translatedTo) return it;
+  return { ...it, name: `${baseName(it.name)}_${it.translatedTo}.txt`, pdfParts: null,
+    pages: it.pages.filter(Boolean).map((p) => ({ ...p, text: p.translated ?? p.text })) };
+}
+
 // ---------- Render ----------
-const STATUS = { pending: 'En cola', processing: 'Procesando', done: 'Listo', error: 'Error' };
+const STATUS = { pending: 'En cola', processing: 'Procesando', done: 'Listo', error: 'Error', translating: 'Traduciendo' };
 
 function itemHtml(it) {
   const pct = it.status === 'done' ? 100 : it.total ? Math.round((it.done / it.total) * 100) : 0;
@@ -112,7 +156,7 @@ function itemHtml(it) {
   const info = it.status === 'error' ? esc(it.error || '')
     : [it.total ? `${it.done}/${it.total} pág.` : '', native ? `${native} digitales` : '', ocr ? `${ocr} con OCR` : '', esc(it.msg || '')].filter(Boolean).join(' · ');
   return `<div class="q-main">
-      <span class="badge ${it.status}">${STATUS[it.status]}</span>
+      <span class="badge ${it.translating ? 'processing' : it.status}">${STATUS[it.translating ? 'translating' : it.status]}</span>
       <span class="q-name" title="${esc(it.name)}">${esc(it.name)}</span>
       <span class="q-info">${info}</span>
     </div>
@@ -149,19 +193,28 @@ function renderViewer(incremental = false) {
   if (!it) return;
   $('#viewer-title').textContent = it.name;
   $('#dl-one').disabled = it.status !== 'done';
+  if (!it.translatedTo) view = 'original';
+  $('#view-switch').hidden = !it.translatedTo;
+  $('#view-switch [data-view=translated]').textContent = it.translatedTo ? `Traducción (${targetName(it.translatedTo)})` : 'Traducción';
+  document.querySelectorAll('#view-switch button').forEach((b) => b.classList.toggle('on', b.dataset.view === view));
+  $('#translate').disabled = it.status !== 'done' || !!it.translating;
+  $('#translate').textContent = it.translating ? 'Traduciendo…' : it.translatedTo ? 'Volver a traducir' : 'Traducir';
+  const field = view === 'translated' ? 'translated' : 'text';
   const box = $('#pages');
-  if (!incremental || renderedFor !== it.id) { box.innerHTML = ''; renderedFor = it.id; }
+  const key = `${it.id}|${view}`;
+  if (!incremental || renderedFor !== key) { box.innerHTML = ''; renderedFor = key; }
   it.pages.forEach((p, idx) => {
     if (!p || box.querySelector(`[data-page="${idx}"]`)) return;
     const el = document.createElement('article');
     el.className = 'page'; el.dataset.page = idx;
-    const conf = p.method === 'ocr' ? `<span class="conf ${p.confidence < 60 ? 'low' : ''}">confianza ${p.confidence}%</span>` : '';
+    const conf = field === 'translated' ? `<span class="tag tr">Traducción · ${esc(targetName(it.translatedTo))}</span>`
+      : p.method === 'ocr' ? `<span class="conf ${p.confidence < 60 ? 'low' : ''}">confianza ${p.confidence}%</span>` : '';
     el.innerHTML = `<header><b>Página ${p.n}</b> <span class="tag ${p.method}">${p.method === 'ocr' ? 'OCR' : 'Texto digital'}</span> ${conf}
       <button class="btn small" data-copy="${idx}">Copiar</button></header>
       <textarea spellcheck="false" placeholder="(página sin texto)"></textarea>`;
     const ta = el.querySelector('textarea');
-    ta.value = p.text;
-    ta.addEventListener('input', () => { p.text = ta.value; autosize(ta); });
+    ta.value = p[field] ?? '';
+    ta.addEventListener('input', () => { p[field] = ta.value; autosize(ta); });
     // Insertar en orden aunque las páginas OCR terminen desordenadas
     const next = [...box.children].find((c) => Number(c.dataset.page) > idx);
     box.insertBefore(el, next || null);
@@ -186,8 +239,9 @@ function applySearch() {
 function fillMenu(menu, forAll) {
   const it = items.find((i) => i.id === selected);
   menu.innerHTML = Object.entries(FORMATS).map(([k, f]) => {
-    const ok = forAll ? (!f.needs || items.some((i) => i.status === 'done' && f.needs(i))) : (it && (!f.needs || f.needs(it)));
-    const hint = !ok && k === 'pdf' ? ' — activa «PDF buscable» y reprocesa' : '';
+    const tr = view === 'translated';
+    const ok = !(tr && k === 'pdf') && (forAll ? (!f.needs || items.some((i) => i.status === 'done' && f.needs(i))) : (it && (!f.needs || f.needs(it))));
+    const hint = ok || k !== 'pdf' ? '' : tr ? ' — solo para el original' : ' — activa «PDF buscable» y reprocesa';
     return `<button data-fmt="${k}" ${ok ? '' : 'disabled'}>${forAll ? 'ZIP · ' : ''}${f.label}${hint}</button>`;
   }).join('');
 }
@@ -206,12 +260,13 @@ async function guarded(fn) {
 $('#dl-one-menu').addEventListener('click', (e) => {
   const fmt = e.target.closest('[data-fmt]')?.dataset.fmt; if (!fmt) return;
   const it = items.find((i) => i.id === selected);
-  guarded(() => exportOne(it, fmt));
+  guarded(() => exportOne(exportView(it), fmt));
 });
 $('#dl-all-menu').addEventListener('click', (e) => {
   const fmt = e.target.closest('[data-fmt]')?.dataset.fmt; if (!fmt) return;
   const done = items.filter((i) => i.status === 'done');
-  guarded(() => (done.length === 1 ? exportOne(done[0], fmt) : exportZip(done, fmt)));
+  const list = done.map(exportView);
+  guarded(() => (list.length === 1 ? exportOne(list[0], fmt) : exportZip(list, fmt)));
 });
 
 // ---------- Eventos ----------
@@ -238,11 +293,11 @@ $('#queue').addEventListener('click', (e) => {
     render(); return;
   }
   const li = e.target.closest('[data-id]');
-  if (li) { selected = Number(li.dataset.id); render(); }
+  if (li) { selected = Number(li.dataset.id); const it = items.find((i) => i.id === selected); view = it?.translatedTo ? view : 'original'; render(); }
 });
 $('#cancel').addEventListener('click', () => { cancelFlag = true; toast('Cancelando…'); });
 $('#retry').addEventListener('click', () => {
-  items.forEach((i) => { if (i.status !== 'processing') { i.status = 'pending'; i.pages = []; i.pdfParts = null; i.sourceBytes = null; } });
+  items.forEach((i) => { if (i.status !== 'processing') { i.status = 'pending'; i.pages = []; i.pdfParts = null; i.sourceBytes = null; i.translatedTo = null; } });
   renderedFor = null; run();
 });
 $('#clear').addEventListener('click', () => {
@@ -251,13 +306,22 @@ $('#clear').addEventListener('click', () => {
 });
 $('#copy').addEventListener('click', async () => {
   const it = items.find((i) => i.id === selected); if (!it) return;
-  try { await navigator.clipboard.writeText(toTxt({ ...it, pages: it.pages.filter(Boolean) })); toast('Texto copiado'); } catch { toast('No se pudo copiar'); }
+  const v = exportView(it);
+  try { await navigator.clipboard.writeText(toTxt({ ...v, pages: v.pages.filter(Boolean) })); toast('Texto copiado'); } catch { toast('No se pudo copiar'); }
 });
 $('#pages').addEventListener('click', async (e) => {
   const b = e.target.closest('[data-copy]'); if (!b) return;
   try { await navigator.clipboard.writeText(b.closest('.page').querySelector('textarea').value); toast('Página copiada'); } catch { toast('No se pudo copiar'); }
 });
 $('#search').addEventListener('input', applySearch);
+$('#translate').addEventListener('click', () => {
+  const it = items.find((i) => i.id === selected);
+  if (it) translateItem(it, $('#target').value);
+});
+$('#view-switch').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-view]'); if (!b) return;
+  view = b.dataset.view; renderViewer();
+});
 window.addEventListener('beforeunload', (e) => { if (running) { e.preventDefault(); e.returnValue = ''; } });
 
 render();
