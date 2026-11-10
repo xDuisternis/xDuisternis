@@ -30,8 +30,8 @@ npm run preview   # sirve dist/ en local
 ```
 
 `dist/` es una web estática: se puede subir a GitHub Pages, Netlify, Cloudflare Pages o cualquier hosting.
-El workflow `.github/workflows/deploy.yml` la publica en GitHub Pages en cada push a `main`
-(actívalo en *Settings → Pages → Source: GitHub Actions*).
+El workflow `.github/workflows/deploy.yml` la compila y la publica en la rama `gh-pages` en cada push a `main`.
+Web publicada: https://xduisternis.github.io/xDuisternis/
 
 ## Añadir más idiomas
 
