@@ -1,0 +1,9 @@
+[
+  { "code": "spa", "name": "Español" },
+  { "code": "eng", "name": "Inglés" },
+  { "code": "por", "name": "Portugués" },
+  { "code": "fra", "name": "Francés" },
+  { "code": "deu", "name": "Alemán" },
+  { "code": "ita", "name": "Italiano" },
+  { "code": "cat", "name": "Catalán" }
+]

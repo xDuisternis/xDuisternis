@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Duisternis OCR</title>
+  <meta name="description" content="Extrae el texto de cualquier PDF (escaneado o digital) o imagen. Gratis, sin límites y 100 % privado: todo se procesa en tu navegador." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%234f46e5'/%3E%3Cpath d='M9 8h10l4 4v12H9z' fill='white'/%3E%3Cpath d='M12 15h8M12 19h8M12 23h5' stroke='%234f46e5' stroke-width='2'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="wrap top-inner">
+      <div class="brand">
+        <span class="logo" aria-hidden="true">
+          <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="currentColor"/><path d="M9 8h10l4 4v12H9z" fill="#fff"/><path d="M12 15h8M12 19h8M12 23h5" stroke="currentColor" stroke-width="2"/></svg>
+        </span>
+        <span>Duisternis <b>OCR</b></span>
+      </div>
+      <span class="pill">Gratis · Sin límites · Sin registro</span>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <h1>Extrae el texto de cualquier PDF o imagen</h1>
+      <p>PDF digitales o escaneados, fotos y capturas. Sin límite de páginas, tamaño ni archivos.
+        <strong>Nada sale de tu equipo:</strong> todo se procesa en tu navegador.</p>
+    </section>
+
+    <label id="drop" class="drop" tabindex="0">
+      <input id="file" type="file" multiple accept=".pdf,application/pdf,image/*,.tif,.tiff" hidden />
+      <svg class="drop-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="drop-title">Arrastra aquí tus archivos o <u>haz clic para elegir</u></span>
+      <span class="drop-sub">PDF, JPG, PNG, WEBP, TIFF, BMP, GIF… También puedes pegar una captura con <kbd>Ctrl</kbd>+<kbd>V</kbd></span>
+    </label>
+
+    <details class="opts" id="opts" open>
+      <summary>Opciones</summary>
+      <div class="opts-grid">
+        <fieldset>
+          <legend>Idiomas del documento</legend>
+          <div id="langs" class="chips"></div>
+          <small>Marca todos los que aparezcan en el texto. Menos idiomas = más rápido.</small>
+        </fieldset>
+        <fieldset>
+          <legend>Modo</legend>
+          <label class="radio"><input type="radio" name="mode" value="auto" checked /> <span><b>Automático</b> — usa el texto del PDF si existe y aplica OCR solo a las páginas escaneadas</span></label>
+          <label class="radio"><input type="radio" name="mode" value="ocr" /> <span><b>Forzar OCR</b> — reconoce todas las páginas como imagen</span></label>
+          <label class="radio"><input type="radio" name="mode" value="native" /> <span><b>Solo texto digital</b> — instantáneo, sin OCR</span></label>
+        </fieldset>
+        <fieldset>
+          <legend>Calidad del OCR</legend>
+          <select id="dpi">
+            <option value="200">Rápida (200 ppp)</option>
+            <option value="300" selected>Recomendada (300 ppp)</option>
+            <option value="400">Máxima, letra pequeña (400 ppp)</option>
+          </select>
+          <label class="inline">Hilos en paralelo <input id="threads" type="number" min="1" max="16" /></label>
+          <label class="check"><input id="searchable" type="checkbox" /> Generar también PDF buscable</label>
+          <small>El PDF buscable conserva el aspecto original y añade texto seleccionable. Usa más memoria.</small>
+        </fieldset>
+      </div>
+    </details>
+
+    <section id="queue-section" class="queue-section" hidden>
+      <div class="bar">
+        <h2>Archivos <span id="summary" class="muted"></span></h2>
+        <div class="actions">
+          <button id="cancel" class="btn ghost" hidden>Cancelar</button>
+          <button id="retry" class="btn ghost" hidden title="Volver a procesar todo con las opciones actuales">Reprocesar</button>
+          <div class="menu">
+            <button id="dl-all" class="btn primary" disabled>Descargar todo ▾</button>
+            <div id="dl-all-menu" class="menu-list" hidden></div>
+          </div>
+          <button id="clear" class="btn ghost">Vaciar</button>
+        </div>
+      </div>
+      <ul id="queue" class="queue"></ul>
+    </section>
+
+    <section id="viewer" class="viewer" hidden>
+      <div class="bar">
+        <h2 id="viewer-title"></h2>
+        <div class="actions">
+          <input id="search" type="search" placeholder="Buscar en el texto…" />
+          <button id="copy" class="btn">Copiar texto</button>
+          <div class="menu">
+            <button id="dl-one" class="btn primary">Descargar ▾</button>
+            <div id="dl-one-menu" class="menu-list" hidden></div>
+          </div>
+        </div>
+      </div>
+      <div id="pages" class="pages"></div>
+    </section>
+
+    <section class="features">
+      <div><h3>Sin límites</h3><p>Ni páginas, ni MB, ni archivos al día. El único límite es tu equipo.</p></div>
+      <div><h3>Privado</h3><p>Los documentos nunca se suben a ningún servidor. Funciona incluso sin conexión una vez cargado.</p></div>
+      <div><h3>Inteligente</h3><p>Detecta página a página si hay texto digital o hace falta OCR, y endereza escaneos torcidos.</p></div>
+      <div><h3>Exporta como quieras</h3><p>TXT, Word, Markdown, JSON o PDF buscable. Uno a uno o todo en un ZIP.</p></div>
+    </section>
+  </main>
+
+  <footer class="wrap foot">Código abierto · OCR con Tesseract y PDF.js, ejecutados localmente en WebAssembly</footer>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
