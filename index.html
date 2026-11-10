@@ -23,7 +23,7 @@
 
   <main class="wrap">
     <section class="hero">
-      <h1>Extrae el texto de cualquier PDF o imagen</h1>
+      <h1>Extrae y traduce el texto de cualquier PDF o imagen</h1>
       <p>PDF digitales o escaneados, fotos y capturas. Sin límite de páginas, tamaño ni archivos.
         <strong>Nada sale de tu equipo:</strong> todo se procesa en tu navegador.</p>
     </section>
@@ -60,6 +60,12 @@
           <label class="check"><input id="searchable" type="checkbox" /> Generar también PDF buscable</label>
           <small>El PDF buscable conserva el aspecto original y añade texto seleccionable. Usa más memoria.</small>
         </fieldset>
+        <fieldset>
+          <legend>Traducción</legend>
+          <label class="inline">Traducir a <select id="target"></select></label>
+          <label class="check"><input id="autotranslate" type="checkbox" /> Traducir automáticamente cada documento al terminar</label>
+          <small>Gratis y sin límite de páginas. Para traducir, el texto se envía al traductor de Google; la extracción sigue siendo 100 % local.</small>
+        </fieldset>
       </div>
     </details>
 
@@ -83,6 +89,11 @@
       <div class="bar">
         <h2 id="viewer-title"></h2>
         <div class="actions">
+          <div id="view-switch" class="seg" hidden>
+            <button data-view="original" class="on">Original</button>
+            <button data-view="translated">Traducción</button>
+          </div>
+          <button id="translate" class="btn">Traducir</button>
           <input id="search" type="search" placeholder="Buscar en el texto…" />
           <button id="copy" class="btn">Copiar texto</button>
           <div class="menu">
@@ -98,6 +109,7 @@
       <div><h3>Sin límites</h3><p>Ni páginas, ni MB, ni archivos al día. El único límite es tu equipo.</p></div>
       <div><h3>Privado</h3><p>Los documentos nunca se suben a ningún servidor. Funciona incluso sin conexión una vez cargado.</p></div>
       <div><h3>Inteligente</h3><p>Detecta página a página si hay texto digital o hace falta OCR, y endereza escaneos torcidos.</p></div>
+      <div><h3>Traduce documentos enteros</h3><p>Traduce todas las páginas a 20 idiomas y descarga la traducción en Word, TXT o Markdown.</p></div>
       <div><h3>Exporta como quieras</h3><p>TXT, Word, Markdown, JSON o PDF buscable. Uno a uno o todo en un ZIP.</p></div>
     </section>
   </main>

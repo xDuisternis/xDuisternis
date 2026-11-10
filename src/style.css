@@ -109,7 +109,7 @@ input[type=number] { width: 72px; }
 .page textarea { display: block; width: 100%; border: 0; background: transparent; resize: vertical; padding: 12px 14px; min-height: 80px;
   font: 14px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; outline: none; white-space: pre-wrap; }
 
-.features { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 40px 0 16px; }
+.features { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 40px 0 16px; }
 .features div { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
 .features h3 { font-size: 15px; margin-bottom: 6px; }
 .features p { margin: 0; color: var(--muted); font-size: 13.5px; }
@@ -125,3 +125,9 @@ input[type=number] { width: 72px; }
   .actions { width: 100%; }
   .actions input[type=search] { flex: 1 1 100%; }
 }
+
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+.seg[hidden] { display: none; }
+.seg button { border: 0; background: var(--card); padding: 7px 12px; cursor: pointer; font-weight: 550; font-size: 14px; }
+.seg button.on { background: var(--accent); color: var(--accent-ink); }
+.tag.tr { background: var(--warn-soft); color: var(--warn); }

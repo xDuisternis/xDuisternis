@@ -14,6 +14,9 @@ todo se procesa en el navegador con WebAssembly. No hay servidor, cuentas, cuota
 - **Idiomas incluidos:** español, inglés, portugués, francés, alemán, italiano y catalán (combinables).
 - **Exporta a** TXT, Word (.docx), Markdown, JSON o **PDF buscable** (aspecto original con texto seleccionable),
   archivo por archivo o todo en un ZIP.
+- **Traducción de documentos enteros** a 20 idiomas (gratis, sin clave y sin límite de páginas), automática al
+  terminar o con un botón. Se puede ver original/traducción y descargar la traducción en Word, TXT, Markdown o JSON.
+  La traducción usa el traductor de Google: es lo único que sale del navegador.
 - Texto editable antes de exportar, búsqueda, copiar por página, pegar capturas con Ctrl+V y PDF con contraseña.
 - Autoalojado: el worker de OCR, el núcleo WASM y los modelos de idioma se sirven desde la propia web (sin CDNs),
   así que funciona en redes restringidas y no depende de terceros.
@@ -44,6 +47,7 @@ Web publicada: https://xduisternis.github.io/xDuisternis/
 | Archivo | Función |
 |---|---|
 | `src/engine.js` | Extracción: texto nativo con PDF.js, rasterizado, pool de workers de Tesseract, decisión por página |
+| `src/translate.js` | Traducción por fragmentos en paralelo, con reintentos si el servicio limita la velocidad |
 | `src/exporters.js` | TXT, Markdown, DOCX, JSON, PDF buscable (pdf-lib) y ZIP |
 | `src/main.js` | Interfaz: cola de archivos, progreso, visor/editor, descargas |
 | `scripts/vendor.mjs` | Copia a `public/vendor` el worker y núcleo WASM de Tesseract, los modelos y los recursos de PDF.js |
